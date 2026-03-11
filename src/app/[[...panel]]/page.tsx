@@ -1,6 +1,6 @@
 'use client'
 
-import { createElement, useEffect, useState } from 'react'
+import { createElement, useCallback, useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { NavRail } from '@/components/layout/nav-rail'
 import { HeaderBar } from '@/components/layout/header-bar'
@@ -96,6 +96,23 @@ export default function Home() {
       router.replace('/chat')
     }
   }, [panelFromUrl, normalizedPanel, router, setActiveTab, setChatPanelOpen])
+
+  // Fetch gateway WS config from server (runtime env) and connect
+  const connectToGateway = useCallback(() => {
+    fetch('/api/gateway-ws-config')
+      .then(r => r.ok ? r.json() : null)
+      .then((cfg: any) => {
+        const wsToken = cfg?.token || ''
+        const gatewayHost = cfg?.host || window.location.hostname
+        const gatewayPort = cfg?.port || '18789'
+        const gatewayProto = cfg?.protocol || (window.location.protocol === 'https:' ? 'wss' : 'ws')
+        const wsUrl = cfg?.url || `${gatewayProto}://${gatewayHost}:${gatewayPort}`
+        connect(wsUrl, wsToken)
+      })
+      .catch(() => {
+        connect(`ws://${window.location.hostname}:18789`, '')
+      })
+  }, [connect])
 
   // Connect to SSE for real-time local DB events (tasks, agents, chat, etc.)
   useServerEvents()
